@@ -1,11 +1,11 @@
 ---
 name: teamspeak
-description: Control TeamSpeak via SinusBot - connect, play audio, TTS, move channels. Use for voice playback, announcements, joining TS channels, or bot management on ts.unimatrix0.cloud.
+description: Control TeamSpeak via SinusBot - connect, play audio, TTS, move channels. Use for voice playback, announcements, joining TS channels, or bot management.
 ---
 
 # TeamSpeak Control via SinusBot
 
-Bot "Bearface" connects to TeamSpeak through SinusBot (Web UI + API).
+A SinusBot-controlled client connects to TeamSpeak through SinusBot (Web UI + API).
 
 ## Quick Reference
 
@@ -42,22 +42,7 @@ See `scripts/config.env.example` for a template.
 
 ### Channels
 
-Use `sinusbot-channels.sh` for a live list. Common ones:
-
-| Name | CID |
-|------|-----|
-| Spawn Room | 1 |
-| AFK | 2 |
-| The Queue | 3 |
-| 🚀🚀 STONKS 🚀🚀 | 5 |
-| Window Licker Club | 11 |
-| Loners | 12 |
-| Random Clips HQ | 18 |
-| In-Raid | 42 |
-| 286.9 MHz AM | 51 |
-| Fishing And More | 53 |
-| Pie Review | 55 |
-| Games | 57 |
+Use `sinusbot-channels.sh` for a live list. Channel IDs/names are server-specific.
 
 ## Scripts
 
@@ -105,14 +90,14 @@ All workflows use the scripts above. Run from the `scripts/` directory.
 ### Join a Channel and Talk
 
 ```bash
-./sinusbot-move.sh 5                    # Move to STONKS channel
+./sinusbot-move.sh <channel_id>         # Move to a channel
 ./sinusbot-chat.sh "Hello everyone"     # Send channel message
 ```
 
 ### Play Audio in a Channel
 
 ```bash
-./sinusbot-play.sh /path/to/audio.mp3 5   # Move to channel 5 and play
+./sinusbot-play.sh /path/to/audio.mp3 <channel_id>   # Move to a channel and play
 ```
 
 ### Full TTS to TeamSpeak
@@ -171,29 +156,22 @@ Base: `http://localhost:8087/api/v1`
 | `/bot/i/{id}/play/byId/{uuid}` | POST | Play uploaded audio |
 | `/bot/i/{id}/stop` | POST | Stop playback |
 
-## Bearface Bridge (Unified Session to Discord)
+## TeamSpeak Bridge (Unified Session to Discord)
 
-**Version:** 2.0.0 (Unified Context)
-
-Listens for **ALL TeamSpeak events** (chat, DMs, channel moves, user joins/leaves) and forwards them to the main Discord channel.
+Listens for **TeamSpeak events** (chat, DMs, channel moves, user joins/leaves) and forwards them to a Discord channel via OpenClaw.
 
 ### How It Works
 
 1. Any TeamSpeak event occurs (user sends message, moves channel, joins, leaves)
-2. SinusBot script detects the event and formats it
+2. A SinusBot script detects the event and formats it
 3. Event is sent to OpenClaw gateway via `/v1/messages/send` API
-4. OpenClaw posts the message to Discord channel `1468441876326776852`
-5. Main agent sees the event in Discord mixed with other Discord activity
-6. Agent has unified context and can respond appropriately
+4. OpenClaw posts the message to the configured Discord channel (`DISCORD_CHANNEL_ID`)
+5. The agent sees the event in Discord mixed with other Discord activity and can respond
 
-### Key Changes (v1.3.3 → v2.0.0)
-
-- **Old:** Events triggered OpenClaw's `chat/completions` endpoint locally, creating separate sessions
-- **New:** Events are routed to Discord channel, unified with main agent's conversation
 
 ### Event-triggered behavior
 
-- When the agent is triggered by a TeamSpeak event (e.g., a user message, join, move, or DM), the event is routed into the main Discord channel. The agent's responses in that case should NOT be reposted manually to TeamSpeak by the operator; SinusBot routing will already forward the agent's reply when appropriate. Manually re-sending the same reply from the agent process causes duplicate messages.
+- When the agent is triggered by a TeamSpeak event (e.g., a user message, join, move, or DM), the event is routed into the Discord channel. If your bridge already forwards agent responses back to TeamSpeak, don’t manually re-send the same reply (prevents duplicates).
 - Default behavior: if an agent response originates from handling a TeamSpeak event, do not call `sinusbot-chat.sh` to re-post the same content to TeamSpeak. Use `sinusbot-chat.sh` only for proactive messages initiated by the agent (not replies to an event) or when you intend to send additional/different content.
 
 ### Events Tracked
@@ -223,19 +201,18 @@ pkill -f sinusbot
 Check SinusBot logs for initialization:
 
 ```bash
-tail -20 /tmp/sinusbot.log | grep "Bearface Bridge"
+tail -20 /tmp/sinusbot.log | grep "TS-BRIDGE"
 ```
 
 Expected output:
 ```
-[Bearface Bridge] v2.0.0 initialized
-[Bearface Bridge] Event routing mode: UNIFIED (Discord)
-[Bearface Bridge] Discord routing: ENABLED
+[TS-BRIDGE] initialized
+[TS-BRIDGE] routing: ENABLED
 ```
 
 ### Testing
 
-1. Connect to `ts.unimatrix0.cloud:9987`
+1. Connect to your TeamSpeak server
 2. Send a message in any channel or DM → Should appear in Discord with `[TeamSpeak...]` prefix
 3. Move to a different channel → Should see `[TeamSpeak move]` event in Discord
 4. Have someone join/leave → Should see `[TeamSpeak join]`/`[TeamSpeak leave]` in Discord

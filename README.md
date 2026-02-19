@@ -9,7 +9,7 @@ This is a **setup/installation** guide for the TeamSpeak ↔ Discord bridge usin
 
 ## Architecture (high level)
 1. **SinusBot** connects to TeamSpeak and runs a bridge script.
-2. The bridge script emits events (e.g., `[DISCORD-BRIDGE] ...`) to a log file (commonly `/tmp/sinusbot.log`).
+2. The bridge script emits events (e.g., `[TS-BRIDGE] ...`) to a log file (commonly `/tmp/sinusbot.log`).
 3. A **listener** tails that log and forwards entries to OpenClaw → Discord (`/v1/messages/send`).
 
 ---
@@ -77,12 +77,13 @@ Tip: copy `scripts/config.env.example` → `scripts/config.env` (ignored by git)
 ---
 
 ## 3) Add/Enable the Bridge Script
-1. Copy your bridge script (e.g., `bearface-trigger.js`) into the SinusBot **scripts** directory.
+1. Copy your bridge script (e.g., `teamspeak-bridge.js`) into the SinusBot **scripts** directory.
 2. Enable it in the SinusBot UI.
 3. Ensure it emits log lines like:
    ```
-   [DISCORD-BRIDGE] [TeamSpeak channel] User: message text
+   [TS-BRIDGE] [TeamSpeak channel] User: message text
    ```
+   (Tag is configurable; just make the listener match.)
 4. If the script posts directly to OpenClaw, configure:
    - `GATEWAY_URL`, `GATEWAY_TOKEN`, `DISCORD_CHANNEL_ID`
 
@@ -115,7 +116,7 @@ export PASSWORD=<sinusbot_password>
 ---
 
 ## 6) Start the Bridge Listener (log → OpenClaw)
-Run a log‑tail listener that forwards `[DISCORD-BRIDGE]` entries to Discord.
+Run a log‑tail listener that forwards `[TS-BRIDGE]` entries to Discord.
 
 Example (custom or from archive scripts):
 
@@ -131,7 +132,7 @@ python3 /path/to/bridge-listener.py
 ---
 
 ## 7) Verify
-- `tail -50 /tmp/sinusbot.log | grep DISCORD-BRIDGE`
+- `tail -50 /tmp/sinusbot.log | grep TS-BRIDGE`
 - Send a TeamSpeak message → confirm it appears in Discord with a `[TeamSpeak ...]` prefix.
 
 ---
