@@ -8,9 +8,16 @@ This is a **setup/installation** guide for the TeamSpeak ↔ Discord bridge usin
 ---
 
 ## Architecture (high level)
-1. **SinusBot** connects to TeamSpeak and runs a bridge script.
-2. The bridge script emits events (e.g., `[TS-BRIDGE] ...`) to a log file (commonly `/tmp/sinusbot.log`).
-3. A **listener** tails that log and forwards entries to OpenClaw → Discord (`/v1/messages/send`).
+Two common receive paths are supported:
+
+**A) @-mention trigger → OpenClaw → reply in TeamSpeak**
+1. **SinusBot** runs `openclaw-mention-trigger.js`.
+2. On a trigger prefix (e.g., `@assistant`), the script POSTs to OpenClaw `/v1/chat/completions`.
+3. The HTTP response is sent back to the TeamSpeak user/channel.
+
+**B) Event log → OpenClaw → Discord**
+1. **SinusBot** runs a script that logs `[TS-BRIDGE] ...` entries (commonly `/tmp/sinusbot.log`).
+2. A **listener** tails that log and forwards entries to OpenClaw → Discord (`/v1/messages/send`).
 
 ---
 
@@ -51,6 +58,11 @@ CQ_KEY=<CLIENTQUERY_KEY>
 GATEWAY_URL=http://<openclaw-host>:<port>
 GATEWAY_TOKEN=<openclaw_gateway_token>
 DISCORD_CHANNEL_ID=<discord_channel_id>
+
+# Mention-trigger routing (for openclaw-mention-trigger.js)
+OPENCLAW_SESSION_KEY=agent:<agent_name>:discord:channel:<id>
+OPENCLAW_AGENT_ID=main
+TRIGGER_PREFIX=@assistant
 ```
 
 Tip: copy `scripts/config.env.example` → `scripts/config.env` (ignored by git) and fill in BOT_ID, INSTANCE, CLIENTQUERY_KEY.
@@ -77,6 +89,19 @@ Tip: copy `scripts/config.env.example` → `scripts/config.env` (ignored by git)
 ---
 
 ## 3) Add/Enable the Bridge Script
+
+### Option A: @-mention trigger (OpenClaw direct)
+1. Copy `bridge/openclaw-mention-trigger.js` into the SinusBot **scripts** directory.
+2. Enable it in the SinusBot UI.
+3. Configure the script settings in the UI:
+   - **Trigger prefix** (e.g., `@assistant`)
+   - **OpenClaw Gateway URL** (e.g., `http://localhost:18789`)
+   - **OpenClaw token** (if required)
+   - **Session key** (`x-openclaw-session-key`, for shared context)
+   - **Agent id** (default `main`)
+4. When a user types the trigger prefix, the script calls `/v1/chat/completions` and replies in TeamSpeak.
+
+### Option B: Log-based event bridge (to Discord)
 1. Copy your bridge script (e.g., `teamspeak-bridge.js`) into the SinusBot **scripts** directory.
 2. Enable it in the SinusBot UI.
 3. Ensure it emits log lines like:
@@ -87,7 +112,7 @@ Tip: copy `scripts/config.env.example` → `scripts/config.env` (ignored by git)
 4. If the script posts directly to OpenClaw, configure:
    - `GATEWAY_URL`, `GATEWAY_TOKEN`, `DISCORD_CHANNEL_ID`
 
-> If the script only logs events, run the listener in the next step.
+> If you only use Option A, you do **not** need the log listener in step 6.
 
 ---
 
@@ -116,6 +141,8 @@ export PASSWORD=<sinusbot_password>
 ---
 
 ## 6) Start the Bridge Listener (log → OpenClaw)
+Skip this step if you only use **Option A (mention trigger)**.
+
 Run a log‑tail listener that forwards `[TS-BRIDGE]` entries to Discord.
 
 Example (custom or from archive scripts):
@@ -132,7 +159,8 @@ python3 /path/to/bridge-listener.py
 ---
 
 ## 7) Verify
-- `tail -50 /tmp/sinusbot.log | grep TS-BRIDGE`
+- **Option A:** Send a TeamSpeak message with the trigger prefix (e.g., `@assistant hello`) → confirm the bot replies in TeamSpeak.
+- **Option B:** `tail -50 /tmp/sinusbot.log | grep TS-BRIDGE`
 - Send a TeamSpeak message → confirm it appears in Discord with a `[TeamSpeak ...]` prefix.
 
 ---
