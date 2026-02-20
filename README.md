@@ -4,6 +4,7 @@ This is a **setup/installation** guide for the TeamSpeak ↔ Discord bridge usin
 **No secrets are included** — use placeholders and your own values.
 
 > For day‑to‑day bot control commands, see `SKILL.md`.
+> For implementation details, see `docs/teamspeak-bridge-implementation.md`.
 
 ---
 

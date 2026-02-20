@@ -7,6 +7,8 @@ description: Control TeamSpeak via SinusBot - connect, play audio, TTS, move cha
 
 A SinusBot-controlled client connects to TeamSpeak through SinusBot (Web UI + API).
 
+Implementation notes: see `docs/teamspeak-bridge-implementation.md`.
+
 ## Quick Reference
 
 | Item | Value |
