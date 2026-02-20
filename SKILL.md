@@ -158,11 +158,17 @@ Base: `http://localhost:8087/api/v1`
 | `/bot/i/{id}/play/byId/{uuid}` | POST | Play uploaded audio |
 | `/bot/i/{id}/stop` | POST | Stop playback |
 
-## TeamSpeak Bridge (Unified Session to Discord)
+## TeamSpeak Bridge Status
 
-Listens for **TeamSpeak events** (chat, DMs, channel moves, user joins/leaves) and forwards them to a Discord channel via OpenClaw.
+### Live: Mention-trigger (TeamSpeak → OpenClaw → TeamSpeak)
+- **Active script name:** `bearface-trigger.js` (renamed copy of `bridge/openclaw-mention-trigger.js` in this repo)
+- Trigger prefix (default `@assistant`) calls `POST /v1/chat/completions` and posts the reply back into TeamSpeak.
+- Configure in the SinusBot UI: trigger prefix, gateway URL, token (if needed), session key, agent id.
 
-### How It Works
+### Archived/Inactive: Log-based Discord relay (TeamSpeak → OpenClaw → Discord)
+This relay is **not running**. The details below are kept only for reference if you choose to re-enable it.
+
+#### How It Works (archived)
 
 1. Any TeamSpeak event occurs (user sends message, moves channel, joins, leaves)
 2. A SinusBot script detects the event and formats it
@@ -170,13 +176,12 @@ Listens for **TeamSpeak events** (chat, DMs, channel moves, user joins/leaves) a
 4. OpenClaw posts the message to the configured Discord channel (`DISCORD_CHANNEL_ID`)
 5. The agent sees the event in Discord mixed with other Discord activity and can respond
 
-
-### Event-triggered behavior
+#### Event-triggered behavior (archived)
 
 - When the agent is triggered by a TeamSpeak event (e.g., a user message, join, move, or DM), the event is routed into the Discord channel. If your bridge already forwards agent responses back to TeamSpeak, don’t manually re-send the same reply (prevents duplicates).
 - Default behavior: if an agent response originates from handling a TeamSpeak event, do not call `sinusbot-chat.sh` to re-post the same content to TeamSpeak. Use `sinusbot-chat.sh` only for proactive messages initiated by the agent (not replies to an event) or when you intend to send additional/different content.
 
-### Events Tracked
+#### Events Tracked (archived)
 
 | Event | Format | Example |
 |-------|--------|---------|
@@ -187,7 +192,7 @@ Listens for **TeamSpeak events** (chat, DMs, channel moves, user joins/leaves) a
 | User join | `[TeamSpeak join] User joined (in: Channel)` | `[TeamSpeak join] Eve joined (in: Lobby)` |
 | User leave | `[TeamSpeak leave] User disconnected (reason)` | `[TeamSpeak leave] Frank disconnected (left)` |
 
-### Start/Restart SinusBot
+#### Start/Restart SinusBot (archived relay)
 
 ```bash
 # Kill existing instance (if needed)
@@ -198,7 +203,7 @@ pkill -f sinusbot
 ./sinusbot-spawn.sh                     # Connect to TS
 ```
 
-### Verification
+#### Verification (archived relay)
 
 Check SinusBot logs for initialization:
 
@@ -212,7 +217,7 @@ Expected output:
 [TS-BRIDGE] routing: ENABLED
 ```
 
-### Testing
+#### Testing (archived relay)
 
 1. Connect to your TeamSpeak server
 2. Send a message in any channel or DM → Should appear in Discord with `[TeamSpeak...]` prefix

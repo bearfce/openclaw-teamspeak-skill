@@ -3,6 +3,8 @@
 This document captures the **implementation details** for the TeamSpeak ↔ OpenClaw bridge. It complements the setup guide in `README.md` and the operator workflows in `SKILL.md`.
 
 > **Goal:** keep the bridge portable and generic. Replace all placeholders with your own values and keep secrets out of version control.
+>
+> **Status:** The live path is the mention-trigger using `bearface-trigger.js` (renamed copy of `bridge/openclaw-mention-trigger.js`). The log-based Discord relay is **archived/inactive**.
 
 ---
 
@@ -13,17 +15,18 @@ This document captures the **implementation details** for the TeamSpeak ↔ Open
 - **OpenClaw Gateway** — receives requests and posts replies.
 - **Discord Channel** — optional destination for TeamSpeak event relays.
 
-Two bridge paths are supported:
+Two bridge paths are documented. **Only A is live; B is archived/inactive.**
 
-### A) Mention-trigger (TeamSpeak → OpenClaw → TeamSpeak)
+### A) Mention-trigger (TeamSpeak → OpenClaw → TeamSpeak) — **LIVE**
 Triggered by a prefix (e.g., `@assistant`) in TeamSpeak chat. The SinusBot script calls the OpenClaw `/v1/chat/completions` endpoint and posts the response back into TeamSpeak.
+Live deployment uses `bearface-trigger.js` (renamed copy of `bridge/openclaw-mention-trigger.js`).
 
-### B) Event relay (TeamSpeak → OpenClaw → Discord)
+### B) Event relay (TeamSpeak → OpenClaw → Discord) — **ARCHIVED/INACTIVE**
 A SinusBot script logs tagged events (chat, join/leave, moves, DMs). A log listener tails those entries and forwards them to OpenClaw `/v1/messages/send`, which posts into Discord.
 
 ---
 
-## 2) Mention-trigger flow (script: `bridge/openclaw-mention-trigger.js`)
+## 2) Mention-trigger flow (script: `bearface-trigger.js` / `bridge/openclaw-mention-trigger.js`)
 
 **Flow:**
 1. User sends a TeamSpeak message containing the trigger prefix.
@@ -47,9 +50,9 @@ A SinusBot script logs tagged events (chat, join/leave, moves, DMs). A log liste
 
 ---
 
-## 3) Event relay flow (log → OpenClaw → Discord)
+## 3) Event relay flow (log → OpenClaw → Discord) — **ARCHIVED/INACTIVE**
 
-If you enable event relays, your SinusBot script should write log entries like:
+This relay is **not running**. If you re‑enable it, your SinusBot script should write log entries like:
 ```
 [TS-BRIDGE] [TeamSpeak channel] <user>: <message>
 [TS-BRIDGE] [TeamSpeak join] <user> joined (in: <channel>)
@@ -100,7 +103,7 @@ CQ_HOST=localhost
 CQ_PORT=25639
 CQ_KEY=<clientquery_key>
 
-# OpenClaw routing
+# OpenClaw routing (log relay only)
 GATEWAY_URL=http://<openclaw-host>:<port>
 GATEWAY_TOKEN=<openclaw_gateway_token>
 DISCORD_CHANNEL_ID=<discord_channel_id>
@@ -115,9 +118,9 @@ TRIGGER_PREFIX=@assistant
 
 ---
 
-## 5) Avoiding duplicate messages
+## 5) Avoiding duplicate messages (log relay only)
 
-If a Discord response is **already** triggered by a TeamSpeak event, do **not** manually re‑send the same content back to TeamSpeak. Reserve `sinusbot-chat.sh` or `sinusbot-play.sh` for **proactive** messages (not event replies).
+Only relevant if you re‑enable the log relay. If a Discord response is **already** triggered by a TeamSpeak event, do **not** manually re‑send the same content back to TeamSpeak. Reserve `sinusbot-chat.sh` or `sinusbot-play.sh` for **proactive** messages (not event replies).
 
 ---
 
@@ -125,7 +128,7 @@ If a Discord response is **already** triggered by a TeamSpeak event, do **not** 
 
 - **Local vs remote**: `localhost` API URLs only work on the SinusBot host. Use a tunnel or expose ports if you control the bridge remotely.
 - **Ghost sessions**: After crashes, TeamSpeak may hold a stale session. Wait briefly before reconnecting.
-- **Logs**: `tail -50 /tmp/sinusbot.log` to check for bridge initialization and event lines.
+- **Logs**: `tail -50 /tmp/sinusbot.log` for script init; TS-BRIDGE event lines only appear if the log relay is re‑enabled.
 - **ClientQuery**: Use it for moves and message sends if the API is unavailable.
 
 ---
@@ -141,6 +144,6 @@ If a Discord response is **already** triggered by a TeamSpeak event, do **not** 
 ## 8) Quick validation checklist
 
 - [ ] SinusBot instance is connected to TeamSpeak.
-- [ ] `openclaw-mention-trigger.js` is enabled and configured.
+- [ ] `bearface-trigger.js` (or `openclaw-mention-trigger.js`) is enabled and configured.
 - [ ] Sending `@assistant hello` receives a response.
-- [ ] Log relay (if enabled) posts tagged TeamSpeak events into Discord.
+- [ ] Log relay (archived; if re‑enabled) posts tagged TeamSpeak events into Discord.
