@@ -2,6 +2,8 @@ FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TS3_VERSION=3.5.6
+ARG SINUSBOT_URL=https://www.sinusbot.com/dl/sinusbot.current.tar.bz2
+ARG NODE_VERSION=20.11.1
 
 ENV SINUSBOT_DIR=/opt/sinusbot \
     TS3_PATH=/opt/teamspeak-client/ts3client_linux_amd64 \
@@ -14,10 +16,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsm6 libice6 libfreetype6 libfontconfig1 libxfixes3 libxcb1 libxkbcommon0 \
     libqt5core5a libqt5gui5 libqt5widgets5 libqt5network5 libqt5x11extras5 libqt5dbus5 libqt5svg5 libqt5multimedia5 \
     xvfb pulseaudio pulseaudio-utils \
-    python3 python3-pip \
-    nodejs npm \
+    python3 \
     gosu \
   && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js (non-EOL, from official binaries)
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
+  && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+  && rm -f /tmp/node.tar.xz \
+  && ln -sf /usr/local/bin/node /usr/local/bin/nodejs
 
 # Install TeamSpeak 3 client
 RUN mkdir -p /opt/teamspeak-client \
@@ -28,13 +35,15 @@ RUN mkdir -p /opt/teamspeak-client \
 
 # Install SinusBot
 RUN mkdir -p /opt/sinusbot \
-  && curl -fsSL https://www.sinusbot.com/dl/sinusbot.current.tar.bz2 \
-    | tar -xj --strip-components=1 -C /opt/sinusbot \
+  && curl -fsSL "${SINUSBOT_URL}" -o /tmp/sinusbot.tar.bz2 \
+  && tar -xjf /tmp/sinusbot.tar.bz2 --strip-components=1 -C /opt/sinusbot \
+  && rm -f /tmp/sinusbot.tar.bz2 \
   && chmod +x /opt/sinusbot/sinusbot
 
 # Prepare runtime user + directories
 RUN useradd -m -u 1000 sinusbot \
-  && mkdir -p /data /opt/openclaw-scripts \
+  && mkdir -p /data /opt/openclaw-scripts /tmp/.X11-unix \
+  && chmod 1777 /tmp/.X11-unix \
   && chown -R sinusbot:sinusbot /data /opt/sinusbot /opt/teamspeak-client /opt/openclaw-scripts
 
 COPY bridge/openclaw-mention-trigger.js /opt/openclaw-scripts/openclaw-mention-trigger.js
@@ -42,5 +51,8 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 8087 25639
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=20s \
+  CMD curl -fsS http://127.0.0.1:8087/ || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

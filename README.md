@@ -81,6 +81,15 @@ This repo includes a **Dockerfile** that installs SinusBot, the TeamSpeak client
 docker build -t openclaw-teamspeak .
 ```
 
+### Build args (optional)
+```bash
+# Override Node version or SinusBot download URL
+docker build \
+  --build-arg NODE_VERSION=20.11.1 \
+  --build-arg SINUSBOT_URL=https://www.sinusbot.com/dl/sinusbot.current.tar.bz2 \
+  -t openclaw-teamspeak .
+```
+
 ### Run
 ```bash
 docker run -d --name openclaw-teamspeak \
@@ -108,6 +117,7 @@ TS3_PATH=/opt/teamspeak-client/ts3client_linux_amd64
 ```
 
 **Notes:**
+- The SinusBot download endpoint may redirect to `dl.sinusbot.com`. If your DNS can’t resolve it, mirror the tarball somewhere reachable and set `SINUSBOT_URL` at build time.
 - The container connects **out** to your TeamSpeak server; you typically don’t need to publish `9987/UDP` unless you run a TS server locally.
 - TeamSpeak and SinusBot license terms apply. Building the image implies acceptance.
 - Enable `openclaw-mention-trigger.js` in the SinusBot UI after the first boot.
