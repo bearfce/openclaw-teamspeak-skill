@@ -73,6 +73,47 @@ Tip: copy `scripts/config.env.example` → `scripts/config.env` (ignored by git)
 
 ---
 
+## Docker (SinusBot + TeamSpeak client)
+This repo includes a **Dockerfile** that installs SinusBot, the TeamSpeak client, Xvfb, and PulseAudio so you can run the bridge headless.
+
+### Build
+```bash
+docker build -t openclaw-teamspeak .
+```
+
+### Run
+```bash
+docker run -d --name openclaw-teamspeak \
+  --restart unless-stopped \
+  -p 8087:8087 \
+  -p 25639:25639 \
+  -v /path/to/ts-data:/data \
+  -e SINUSBOT_ADMIN_PASSWORD=<admin_password> \
+  openclaw-teamspeak
+```
+
+**What persists in `/data`:**
+- `config.ini`, `sinusbot.log`, identities, settings DB
+- `scripts/` (custom scripts)
+
+**Seeded scripts:** on first boot, the container copies `openclaw-mention-trigger.js` into `/data/scripts/` if it’s missing.
+
+### Docker env vars (optional)
+```bash
+SINUSBOT_ADMIN_PASSWORD=<admin_password>      # overrides admin password on boot
+SINUSBOT_DATA_DIR=/data
+SINUSBOT_SCRIPTS_DIR=/data/scripts
+SINUSBOT_CONFIG=/data/config.ini
+TS3_PATH=/opt/teamspeak-client/ts3client_linux_amd64
+```
+
+**Notes:**
+- The container connects **out** to your TeamSpeak server; you typically don’t need to publish `9987/UDP` unless you run a TS server locally.
+- TeamSpeak and SinusBot license terms apply. Building the image implies acceptance.
+- Enable `openclaw-mention-trigger.js` in the SinusBot UI after the first boot.
+
+---
+
 ## 1) Install SinusBot (headless)
 1. Download and extract SinusBot into `$SINUSBOT_DIR`.
 2. Install the TeamSpeak 3 client binary and set `TS3Path` in `config.ini`:
