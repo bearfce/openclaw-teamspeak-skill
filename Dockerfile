@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl bzip2 tar xz-utils jq less \
     libglib2.0-0 libnss3 libx11-6 libxcomposite1 libxcursor1 libxdamage1 \
     libxext6 libxi6 libxrandr2 libxrender1 libxtst6 libasound2 libdbus-1-3 \
-    libsm6 libice6 libfreetype6 libfontconfig1 libxfixes3 libxcb1 libxkbcommon0 \
+    libsm6 libice6 libfreetype6 libfontconfig1 libxfixes3 libxcb1 libxkbcommon0 libxss1 \
     libqt5core5a libqt5gui5 libqt5widgets5 libqt5network5 libqt5x11extras5 libqt5dbus5 libqt5svg5 libqt5multimedia5 \
     xvfb pulseaudio pulseaudio-utils \
     python3 \
