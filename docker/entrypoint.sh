@@ -57,6 +57,15 @@ if [ ! -f "${SCRIPTS_DIR}/openclaw-mention-trigger.js" ]; then
   cp /opt/openclaw-scripts/openclaw-mention-trigger.js "${SCRIPTS_DIR}/"
 fi
 
+# Ensure TeamSpeak plugin is installed (prevents library download errors)
+TS3_DIR="$(dirname "${TS3_PATH}")"
+if [ -n "${TS3_DIR}" ]; then
+  mkdir -p "${TS3_DIR}/plugins"
+  if [ ! -f "${TS3_DIR}/plugins/libsoundbot_plugin.so" ]; then
+    cp -f "${SINUSBOT_DIR}/plugin/libsoundbot_plugin.so" "${TS3_DIR}/plugins/"
+  fi
+fi
+
 # Start PulseAudio + Xvfb (headless TS client needs both)
 pulseaudio --daemonize=yes --exit-idle-time=-1 --disallow-exit || true
 if ! pgrep -x Xvfb >/dev/null 2>&1; then
