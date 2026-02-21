@@ -10,7 +10,7 @@ ENV SINUSBOT_DIR=/opt/sinusbot \
     DISPLAY=:99
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl bzip2 tar xz-utils jq \
+    ca-certificates curl bzip2 tar xz-utils jq less \
     libglib2.0-0 libnss3 libx11-6 libxcomposite1 libxcursor1 libxdamage1 \
     libxext6 libxi6 libxrandr2 libxrender1 libxtst6 libasound2 libdbus-1-3 \
     libsm6 libice6 libfreetype6 libfontconfig1 libxfixes3 libxcb1 libxkbcommon0 \
@@ -36,7 +36,7 @@ RUN mkdir -p /opt/teamspeak-client \
 # Install SinusBot
 RUN mkdir -p /opt/sinusbot \
   && curl -fsSL "${SINUSBOT_URL}" -o /tmp/sinusbot.tar.bz2 \
-  && tar -xjf /tmp/sinusbot.tar.bz2 --strip-components=1 -C /opt/sinusbot \
+  && tar -xjf /tmp/sinusbot.tar.bz2 -C /opt/sinusbot \
   && rm -f /tmp/sinusbot.tar.bz2 \
   && chmod +x /opt/sinusbot/sinusbot
 
