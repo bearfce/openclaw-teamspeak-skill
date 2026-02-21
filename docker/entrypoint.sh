@@ -9,7 +9,7 @@ TS3_PATH="${TS3_PATH:-/opt/teamspeak-client/ts3client_linux_amd64}"
 
 if [ "$(id -u)" = "0" ]; then
   mkdir -p "${DATA_DIR}" "${SCRIPTS_DIR}" /tmp/xdg /tmp/.X11-unix
-  chmod 1777 /tmp/.X11-unix
+  chmod 1777 /tmp/.X11-unix || true
   chown -R sinusbot:sinusbot "${DATA_DIR}" /tmp/xdg
   exec gosu sinusbot "$0" "$@"
 fi
@@ -20,7 +20,7 @@ export PULSE_SERVER="${PULSE_SERVER:-unix:${XDG_RUNTIME_DIR}/pulse/native}"
 
 mkdir -p "${DATA_DIR}" "${SCRIPTS_DIR}" "${XDG_RUNTIME_DIR}" /tmp/.X11-unix
 chmod 700 "${XDG_RUNTIME_DIR}"
-chmod 1777 /tmp/.X11-unix
+chmod 1777 /tmp/.X11-unix || true
 
 # Initialize config if needed
 if [ ! -f "${CONFIG_PATH}" ]; then
