@@ -1,0 +1,11 @@
+# TeamSpeak Server Installation
+
+## Headless Install
+
+To install the TeamSpeak server in a headless environment, use the following command to bypass the UI terms acceptance popup:
+
+```bash
+./teamspeak3-server_linux_x86t64/ts3server_minimal_runscript.sh --nox11
+```
+
+This adds the --nox11 flag to skip the UI terms popup.
