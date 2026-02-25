@@ -3,8 +3,8 @@
 # Usage: ./sinusbot-auth.sh [username] [password]
 # Outputs: TOKEN=<token> and INSTANCE=<instance_id>
 
-USERNAME="${1:-admin}"
-PASSWORD="${2:-sinusbot}"
+USERNAME="${1:-${USERNAME:-admin}}"
+PASSWORD="${2:-${PASSWORD:-sinusbot}}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1090

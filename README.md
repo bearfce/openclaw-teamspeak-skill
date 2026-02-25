@@ -140,6 +140,11 @@ TS3_PATH=/opt/teamspeak-client/ts3client_linux_amd64
    - Nickname: `<TS_NICKNAME>`
    - Identity: `<TS_IDENTITY>`
 4. Record **BOT_ID** and **INSTANCE** from the UI.
+   - **Tip (Docker / headless):** On first boot, SinusBot auto-creates a default bot. Discover the `BOT_ID` via the API:
+     ```bash
+     curl -s http://localhost:8087/api/v1/botId | jq -r .defaultBotId
+     ```
+   - The instance ID is returned after authenticating — see `sinusbot-auth.sh` or the instance list endpoint.
 
 ---
 

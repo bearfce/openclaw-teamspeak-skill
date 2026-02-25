@@ -1,0 +1,6 @@
+.data/
+.git/
+*.md
+scripts/config.env
+.env
+docs/
