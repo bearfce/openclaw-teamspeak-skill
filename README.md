@@ -1,13 +1,13 @@
 # TeamSpeak Bridge Setup (SinusBot + OpenClaw)
 
-This is a **setup/installation** guide for the TeamSpeak ↔ Discord bridge using SinusBot.  
-**No secrets are included** — use placeholders and your own values.
+This is a **setup/installation** guide for the TeamSpeak ↔ Discord bridge using SinusBot.
+**No secrets are included** - use placeholders and your own values.
 
-> For day‑to‑day bot control commands, see `SKILL.md`.
+> For day-to-day bot control commands, see `SKILL.md`.
 > For implementation details, see `docs/teamspeak-bridge-implementation.md`.
 >
-> **Status:** The **active** bridge is the @‑mention trigger (deployed as `bearface-trigger.js`, a renamed copy of `bridge/openclaw-mention-trigger.js`).
-> The log‑based Discord relay is **archived/inactive** and kept only for reference.
+> **Status:** The **active** bridge is the @-mention trigger (deployed as `bearface-trigger.js`, a renamed copy of `bridge/openclaw-mention-trigger.js`).
+> The log-based Discord relay is **archived/inactive** and kept only for reference.
 
 ---
 
@@ -105,7 +105,7 @@ docker run -d --name openclaw-teamspeak \
 - `config.ini`, `sinusbot.log`, identities, settings DB
 - `scripts/` (custom scripts)
 
-**Seeded scripts:** on first boot, the container copies `openclaw-mention-trigger.js` into `/data/scripts/` if it’s missing.
+**Seeded scripts:** on first boot, the container copies `openclaw-mention-trigger.js` into `/data/scripts/` if it's missing.
 
 ### Docker env vars (optional)
 ```bash
@@ -117,8 +117,8 @@ TS3_PATH=/opt/teamspeak-client/ts3client_linux_amd64
 ```
 
 **Notes:**
-- The SinusBot download endpoint may redirect to `dl.sinusbot.com`. If your DNS can’t resolve it, mirror the tarball somewhere reachable and set `SINUSBOT_URL` at build time.
-- The container connects **out** to your TeamSpeak server; you typically don’t need to publish `9987/UDP` unless you run a TS server locally.
+- The SinusBot download endpoint may redirect to `dl.sinusbot.com`. If your DNS can't resolve it, mirror the tarball somewhere reachable and set `SINUSBOT_URL` at build time.
+- The container connects **out** to your TeamSpeak server; you typically don't need to publish `9987/UDP` unless you run a TS server locally.
 - TeamSpeak and SinusBot license terms apply. Building the image implies acceptance.
 - Enable `openclaw-mention-trigger.js` in the SinusBot UI after the first boot.
 
@@ -144,7 +144,7 @@ TS3_PATH=/opt/teamspeak-client/ts3client_linux_amd64
      ```bash
      curl -s http://localhost:8087/api/v1/botId | jq -r .defaultBotId
      ```
-   - The instance ID is returned after authenticating — see `sinusbot-auth.sh` or the instance list endpoint.
+   - The instance ID is returned after authenticating - see `sinusbot-auth.sh` or the instance list endpoint.
 
 ---
 
@@ -161,7 +161,7 @@ TS3_PATH=/opt/teamspeak-client/ts3client_linux_amd64
    - **Agent id** (default `main`)
 4. When a user types the trigger prefix, the script calls `/v1/chat/completions` and replies in TeamSpeak.
 
-### Option B: Log-based event bridge (to Discord) — **ARCHIVED/INACTIVE**
+### Option B: Log-based event bridge (to Discord) - **ARCHIVED/INACTIVE**
 1. Copy your bridge script (e.g., `teamspeak-bridge.js`) into the SinusBot **scripts** directory.
 2. Enable it in the SinusBot UI.
 3. Ensure it emits log lines like:
@@ -201,9 +201,9 @@ export PASSWORD=<sinusbot_password>
 ---
 
 ## 6) Start the Bridge Listener (log → OpenClaw)
-**Archived/inactive.** Skip this step unless you explicitly re‑enable **Option B**.
+**Archived/inactive.** Skip this step unless you explicitly re-enable **Option B**.
 
-Run a log‑tail listener that forwards `[TS-BRIDGE]` entries to Discord.
+Run a log-tail listener that forwards `[TS-BRIDGE]` entries to Discord.
 
 Example (custom or from archive scripts):
 
@@ -220,12 +220,36 @@ python3 /path/to/bridge-listener.py
 
 ## 7) Verify
 - **Option A:** Send a TeamSpeak message with the trigger prefix (e.g., `@assistant hello`) → confirm the bot replies in TeamSpeak.
-- **Option B (if re‑enabled):** `tail -50 /tmp/sinusbot.log | grep TS-BRIDGE`
+- **Option B (if re-enabled):** `tail -50 /tmp/sinusbot.log | grep TS-BRIDGE`
 - Send a TeamSpeak message → confirm it appears in Discord with a `[TeamSpeak ...]` prefix.
 
 ---
 
+## Message Handling
+
+### Character Limits
+TeamSpeak has a **1024-character limit per message**. The mention-trigger script handles this automatically:
+- **Long responses are chunked** into multiple messages (1024 chars each)
+- Small delays between chunks prevent rate limiting
+- The script logs how many parts were sent
+
+Example: A 2500-character response is split into 3 messages.
+
+### Rate Limiting
+To prevent spam:
+- **Rate limiting is enabled by default** (2 seconds between mentions per user)
+- Configure `rateLimitMs` in the SinusBot plugin settings
+- Users receive a message if they trigger too quickly
+
+### Input Validation
+- Control characters are stripped from user messages
+- Messages are limited to 4096 characters
+- Empty messages (after sanitization) are rejected
+
+---
+
 ## Notes / Gotchas
-- **Avoid duplicates:** If a Discord response is already triggered by a TeamSpeak event, don’t manually re‑send the same reply back to TS.
+- **Avoid duplicates:** If a Discord response is already triggered by a TeamSpeak event, don't manually re‑send the same reply back to TS.
 - **Ghost sessions:** If SinusBot reconnects too quickly after a crash, TS may reject the new connection. Wait ~30s and retry.
 - **Local vs remote:** `localhost` API URLs only work on the SinusBot host. Use a tunnel or expose ports for remote control.
+- **Security:** Store API tokens securely; never send passwords or sensitive data via TeamSpeak.
