@@ -62,6 +62,25 @@ registerPlugin({
             type: 'number',
             placeholder: '60000',
             default: 60000
+        },
+        {
+            name: 'rateLimitEnabled',
+            title: 'Enable rate limiting',
+            type: 'checkbox',
+            default: true
+        },
+        {
+            name: 'rateLimitMs',
+            title: 'Rate limit (min ms between mentions per user)',
+            type: 'number',
+            placeholder: '2000',
+            default: 2000
+        },
+        {
+            name: 'inputValidationEnabled',
+            title: 'Enable input validation/sanitization',
+            type: 'checkbox',
+            default: true
         }
     ]
 }, (_, config) => {
@@ -77,6 +96,12 @@ registerPlugin({
     const agentId = (config.agentId || 'main').trim()
     const debugMode = !!config.debugMode
     const timeoutMs = Number(config.timeoutMs || 60000)
+    const rateLimitEnabled = !!config.rateLimitEnabled
+    const rateLimitMs = Number(config.rateLimitMs || 2000)
+    const inputValidationEnabled = !!config.inputValidationEnabled
+
+    // Rate limit tracking: clientUid -> timestamp of last request
+    const clientRequestTimes = {}
 
     function log(msg) {
         engine.log('[OpenClaw Mention Bridge] ' + msg)
@@ -101,6 +126,10 @@ registerPlugin({
     /**
      * Send a message to the OpenClaw chatCompletions endpoint.
      * Calls callback(error, responseText).
+     * 
+     * @param {string} userName - The TeamSpeak username
+     * @param {string} userMessage - The user's message
+     * @param {Function} callback - Callback function(error, responseText)
      */
     function askAgent(userName, userMessage, callback) {
         const url = openclawUrl.replace(/\/$/, '') + '/v1/chat/completions'
@@ -133,16 +162,40 @@ registerPlugin({
             body: body
         }, (error, response) => {
             if (error) {
+                const errorMsg = 'Connection failed. Check if OpenClaw gateway is running at ' + openclawUrl
                 log('chatCompletions error: ' + error)
-                callback('Request failed: ' + error, null)
+                debugLog('Full error: ' + error)
+                callback(errorMsg, null)
                 return
             }
 
             debugLog('chatCompletions HTTP ' + response.statusCode)
 
+            if (response.statusCode === 401) {
+                const errorMsg = 'Authentication failed. Check your gateway token and session key.'
+                log('chatCompletions: HTTP 401 (auth failed)')
+                callback(errorMsg, null)
+                return
+            }
+
+            if (response.statusCode === 404) {
+                const errorMsg = 'OpenClaw endpoint not found. Check your gateway URL.'
+                log('chatCompletions: HTTP 404 (not found)')
+                callback(errorMsg, null)
+                return
+            }
+
+            if (response.statusCode >= 500) {
+                const errorMsg = 'OpenClaw server error (HTTP ' + response.statusCode + '). Try again later.'
+                log('chatCompletions: HTTP ' + response.statusCode + ' (server error)')
+                callback(errorMsg, null)
+                return
+            }
+
             if (response.statusCode >= 400) {
-                log('chatCompletions HTTP ' + response.statusCode + ': ' + response.data)
-                callback('HTTP ' + response.statusCode, null)
+                const errorMsg = 'Request error (HTTP ' + response.statusCode + '). Check your configuration.'
+                log('chatCompletions: HTTP ' + response.statusCode + ' — ' + (response.data || '').substring(0, 100))
+                callback(errorMsg, null)
                 return
             }
 
@@ -159,17 +212,66 @@ registerPlugin({
 
                 if (!text) {
                     log('chatCompletions: empty response body')
-                    callback('Empty response', null)
+                    callback('No response from agent', null)
                     return
                 }
 
                 debugLog('Got response (' + text.length + ' chars)')
                 callback(null, text)
             } catch (e) {
+                const errorMsg = 'Failed to parse OpenClaw response. Check the gateway logs.'
                 log('chatCompletions parse error: ' + e + ' | raw: ' + (response.data || '').substring(0, 200))
-                callback('Parse error', null)
+                debugLog('Full parse error: ' + e)
+                callback(errorMsg, null)
             }
         })
+    }
+
+    /**
+     * Check if client is rate-limited.
+     * Returns { allowed: boolean, message?: string }
+     */
+    function checkRateLimit(clientUid) {
+        if (!rateLimitEnabled) return { allowed: true }
+
+        const now = Date.now()
+        const lastTime = clientRequestTimes[clientUid] || 0
+        const elapsed = now - lastTime
+
+        if (elapsed < rateLimitMs) {
+            const waitMs = rateLimitMs - elapsed
+            return {
+                allowed: false,
+                message: 'Please wait ' + Math.ceil(waitMs / 1000) + 's before mentioning again.'
+            }
+        }
+
+        clientRequestTimes[clientUid] = now
+        return { allowed: true }
+    }
+
+    /**
+     * Sanitize and validate user input.
+     * Removes control characters and limits length.
+     */
+    function validateInput(message) {
+        if (!inputValidationEnabled) return { valid: true, sanitized: message }
+
+        // Remove control characters (but keep newlines, tabs)
+        let sanitized = message.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+
+        // Limit to reasonable length (prevent abuse)
+        const maxLen = 4096
+        if (sanitized.length > maxLen) {
+            sanitized = sanitized.substring(0, maxLen)
+        }
+
+        // Ensure not empty after sanitization
+        if (!sanitized.trim()) {
+            return { valid: false, message: 'Message is empty after validation.' }
+        }
+
+        return { valid: true, sanitized: sanitized.trim() }
     }
 
     function getClientByUid(uid) {
@@ -180,12 +282,35 @@ registerPlugin({
         return null
     }
 
+    /**
+     * Send message to client/channel, chunking if necessary.
+     * TeamSpeak has a 1024-character limit per message.
+     * Longer messages are automatically split and sent as multiple messages.
+     */
     function respond(client, channel, mode, message) {
-        if (mode === 2 && channel) {
-            channel.chat(message)
-        } else {
-            client.chat(message)
+        const maxLen = 1024
+        const chunks = []
+        let pos = 0
+
+        while (pos < message.length) {
+            chunks.push(message.substring(pos, pos + maxLen))
+            pos += maxLen
         }
+
+        debugLog('Chunking response into ' + chunks.length + ' part(s) for delivery')
+
+        chunks.forEach((chunk, index) => {
+            if (mode === 2 && channel) {
+                channel.chat(chunk)
+            } else {
+                client.chat(chunk)
+            }
+            
+            if (index < chunks.length - 1) {
+                // Small delay between chunks to prevent rate limiting
+                require('engine').sleep(100)
+            }
+        })
     }
 
     event.on('chat', (ev) => {
@@ -208,6 +333,15 @@ registerPlugin({
         const hasTrigger = lowerText.indexOf(triggerPrefix.toLowerCase()) !== -1
         if (!hasTrigger) return
 
+        // Check rate limit
+        const rateLimitCheck = checkRateLimit(clientUid)
+        if (!rateLimitCheck.allowed) {
+            log('Rate limited: ' + clientName + ' (' + clientUid + ')')
+            const ch = channelId ? backend.getChannelByID(channelId) : null
+            respond(client, ch, mode, '[OpenClaw] ' + rateLimitCheck.message)
+            return
+        }
+
         let cleanMessage = text
         const regex = new RegExp(triggerPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
         cleanMessage = cleanMessage.replace(regex, '').trim()
@@ -216,6 +350,16 @@ registerPlugin({
         if (!cleanMessage) {
             cleanMessage = 'hello'
         }
+
+        // Validate input
+        const inputCheck = validateInput(cleanMessage)
+        if (!inputCheck.valid) {
+            log('Invalid input from ' + clientName + ': ' + inputCheck.message)
+            const ch = channelId ? backend.getChannelByID(channelId) : null
+            respond(client, ch, mode, '[OpenClaw] ' + inputCheck.message)
+            return
+        }
+        cleanMessage = inputCheck.sanitized
 
         log('Trigger from ' + clientName + ' (mode=' + mode + '): ' + cleanMessage)
 
@@ -236,16 +380,10 @@ registerPlugin({
                 return
             }
 
-            const maxLen = 1024
-            let tsResponse = response
-            if (tsResponse.length > maxLen) {
-                tsResponse = tsResponse.substring(0, maxLen - 20) + '... (truncated)'
-            }
-
             if (resolvedClient) {
                 const ch = channelId ? backend.getChannelByID(channelId) : null
-                respond(resolvedClient, ch, mode, tsResponse)
-                debugLog('Sent response to ' + clientName + ' (mode=' + mode + ', ' + tsResponse.length + ' chars)')
+                respond(resolvedClient, ch, mode, response)
+                debugLog('Sent response to ' + clientName + ' (mode=' + mode + ', ' + response.length + ' chars)')
             } else {
                 log('Client ' + clientName + ' (' + clientUid + ') no longer connected')
             }
@@ -254,6 +392,8 @@ registerPlugin({
 
     log('OpenClaw Mention Bridge v1.0.0 initialized')
     log('Trigger: ' + triggerPrefix)
-    log('Session: ' + sessionKey)
+    log('Session: ' + sessionKey.substring(0, 20) + '...')
     log('Debug: ' + (debugMode ? 'ON' : 'OFF'))
+    log('Rate limiting: ' + (rateLimitEnabled ? 'ON (' + rateLimitMs + 'ms)' : 'OFF'))
+    log('Input validation: ' + (inputValidationEnabled ? 'ON' : 'OFF'))
 })

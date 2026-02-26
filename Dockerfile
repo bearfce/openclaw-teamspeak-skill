@@ -1,8 +1,18 @@
 FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
+
+# TeamSpeak Client version (update as needed)
+# Available releases: https://files.teamspeak-services.com/releases/client/
 ARG TS3_VERSION=3.5.6
+
+# SinusBot download URL
+# Current: https://www.sinusbot.com/dl/sinusbot.current.tar.bz2
+# Pin to specific version when available: https://www.sinusbot.com/dl/sinusbot.X.Y.Z.tar.bz2
 ARG SINUSBOT_URL=https://www.sinusbot.com/dl/sinusbot.current.tar.bz2
+
+# Node.js version (update to latest LTS periodically)
+# Current LTS: https://nodejs.org/
 ARG NODE_VERSION=20.11.1
 
 ENV SINUSBOT_DIR=/opt/sinusbot \
