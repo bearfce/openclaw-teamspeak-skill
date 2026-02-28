@@ -6,22 +6,29 @@ This is a **setup/installation** guide for the TeamSpeak ↔ Discord bridge usin
 > For day-to-day bot control commands, see `SKILL.md`.
 > For implementation details, see `docs/teamspeak-bridge-implementation.md`.
 >
-> **Status:** The **active** bridge is the @-mention trigger (deployed as `bearface-trigger.js`, a renamed copy of `bridge/openclaw-mention-trigger.js`).
-> The log-based Discord relay is **archived/inactive** and kept only for reference.
+> **Bridge Options:** Choose between two active SinusBot bridge scripts:
+> - **Comprehensive Event Bridge** (`bridge/openclaw-event-bridge.js`) - triggers on ALL TeamSpeak events (chat, joins, leaves, moves)
+> - **Mention-Only Trigger** (`bridge/openclaw-mention-trigger.js`) - triggers only on @mentions
+> 
+> See `SKILL.md` for a detailed comparison and setup instructions.
 
 ---
 
 ## Architecture (high level)
-Two receive paths are documented. **Only A is live.**
 
-**A) @-mention trigger → OpenClaw → reply in TeamSpeak (LIVE)**
-1. **SinusBot** runs `bearface-trigger.js` (renamed copy of `bridge/openclaw-mention-trigger.js`).
-2. On a trigger prefix (e.g., `@assistant`), the script POSTs to OpenClaw `/v1/chat/completions`.
-3. The HTTP response is sent back to the TeamSpeak user/channel.
+**Option A: Comprehensive Event Bridge (Recommended)**
+1. **SinusBot** runs `openclaw-event-bridge.js`
+2. ALL TeamSpeak events (chat, joins, leaves, moves) POST to OpenClaw `/v1/chat/completions`
+3. Agent responses are sent back to TeamSpeak (configurable per event type)
 
-**B) Event log → OpenClaw → Discord (ARCHIVED/INACTIVE)**
-1. **SinusBot** runs a script that logs `[TS-BRIDGE] ...` entries (commonly `/tmp/sinusbot.log`).
-2. A **listener** tails that log and forwards entries to OpenClaw → Discord (`/v1/messages/send`).
+**Option B: Mention-Only Trigger**
+1. **SinusBot** runs `openclaw-mention-trigger.js`
+2. Only messages with trigger prefix (e.g., `@assistant`) POST to OpenClaw `/v1/chat/completions`
+3. The HTTP response is sent back to the TeamSpeak user/channel
+
+**Archived: Event log → OpenClaw → Discord (INACTIVE)**
+1. **SinusBot** runs a script that logs `[TS-BRIDGE] ...` entries
+2. A **listener** tails that log and forwards entries to OpenClaw → Discord (`/v1/messages/send`)
 
 ---
 
