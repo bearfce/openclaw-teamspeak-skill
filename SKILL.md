@@ -158,12 +158,70 @@ Base: `http://localhost:8087/api/v1`
 | `/bot/i/{id}/play/byId/{uuid}` | POST | Play uploaded audio |
 | `/bot/i/{id}/stop` | POST | Stop playback |
 
-## TeamSpeak Bridge Status
+## TeamSpeak Bridge Options
 
-### Live: Mention-trigger (TeamSpeak → OpenClaw → TeamSpeak)
-- **Active script name:** `bearface-trigger.js` (renamed copy of `bridge/openclaw-mention-trigger.js` in this repo)
-- Trigger prefix (default `@assistant`) calls `POST /v1/chat/completions` and posts the reply back into TeamSpeak.
-- Configure in the SinusBot UI: trigger prefix, gateway URL, token (if needed), session key, agent id.
+You have **two bridge scripts** to choose from. Pick the one that fits your use case:
+
+### Option A: Comprehensive Event Bridge (Recommended)
+**Script:** `bridge/openclaw-event-bridge.js`
+
+Triggers the agent on **ALL major TeamSpeak events**:
+- All chat messages (channel, DM, server) — no trigger prefix needed
+- User joins
+- User leaves/disconnects  
+- Channel moves
+
+**When to use:**
+- You want the agent to be aware of all TeamSpeak activity
+- You want contextual responses to joins, leaves, and moves
+- You want the agent to participate naturally in all conversations
+
+**Configuration (SinusBot UI):**
+- OpenClaw Gateway URL
+- Session key
+- Agent ID
+- Enable/disable individual event types (chat, joins, leaves, moves)
+- Optional: notification channel ID for non-chat events
+- Optional: silent mode (send events to agent but no TeamSpeak replies for non-chat)
+- Rate limiting and input validation
+
+**Event formats sent to agent:**
+- `[TeamSpeak channel] User (in ChannelName): message`
+- `[TeamSpeak DM] User: message`
+- `[TeamSpeak server] User: message`
+- `[TeamSpeak join] User joined (in: ChannelName)`
+- `[TeamSpeak leave] User disconnected (reason)`
+- `[TeamSpeak move] User moved from ChannelA to ChannelB`
+
+### Option B: Mention-Only Trigger
+**Script:** `bridge/openclaw-mention-trigger.js`
+
+Triggers the agent **only** when mentioned with a specific prefix (e.g., `@assistant`).
+
+**When to use:**
+- You want the agent to respond only when explicitly called
+- You want to reduce noise/API calls
+- You prefer explicit invocation over ambient awareness
+
+**Configuration (SinusBot UI):**
+- Trigger prefix (e.g., `@assistant`)
+- OpenClaw Gateway URL
+- Session key
+- Agent ID
+- Rate limiting and input validation
+
+### Choosing Between Them
+
+| Feature | Event Bridge | Mention-Only |
+|---------|-------------|--------------|
+| All chat messages | ✓ | Only @mentions |
+| User joins/leaves | ✓ | ✗ |
+| Channel moves | ✓ | ✗ |
+| API calls | High | Low |
+| Context awareness | Full | Limited |
+| Explicit control | Less | More |
+
+**Recommendation:** Start with the **Event Bridge** for full awareness, then switch to Mention-Only if you need to reduce API calls or prefer explicit control.
 
 ### Archived/Inactive: Log-based Discord relay (TeamSpeak → OpenClaw → Discord)
 This relay is **not running**. The details below are kept only for reference if you choose to re-enable it.
